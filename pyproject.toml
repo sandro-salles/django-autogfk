@@ -24,9 +24,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-user/django-autogfk"
-Repository = "https://github.com/your-user/django-autogfk"
-Issues = "https://github.com/your-user/django-autogfk/issues"
+Homepage = "https://github.com/sandro-salles/django-autogfk"
+Repository = "https://github.com/sandro-salles/django-autogfk"
+Issues = "https://github.com/sandro-salles/django-autogfk/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
