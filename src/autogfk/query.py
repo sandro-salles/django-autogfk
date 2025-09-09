@@ -5,6 +5,16 @@ from django.db import models
 from django.db.models import Q
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
+
+try:
+    from polymorphic.query import PolymorphicQuerySet
+except Exception as e:  # pragma: no cover
+    raise ImproperlyConfigured(
+        "django-polymorphic is required for autogfk.polymorphic. "
+        "Install with: pip install django-polymorphic"
+    ) from e
+
 
 
 def _gfk_map_for_model(model: type[models.Model]) -> dict[str, Tuple[str, str]]:
@@ -201,19 +211,35 @@ class AutoGenericForeignKeyQuerySet(models.QuerySet):
         new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
         return super().get(*new_args, **rest)
 
-
-class AutoGenericForeignKeyManager(models.Manager.from_queryset(AutoGenericForeignKeyQuerySet)):
+class AutoGenericForeignKeyRewriteMixin:
     """
-    Manager that provides the QuerySet above.
+    QuerySet mixin: rewrites filters on GenericForeignKey/AutoGenericForeignKey
+    and then delegates to super() — to coexist with PolymorphicQuerySet (and others).
+    """
+    def _rewrite_args_kwargs(self, *args: Q, **kwargs: Any):
+        q_gfk, rest = _rewrite_kwargs_to_q(self.model, kwargs)
+        new_args = [_rewrite_q_obj(self.model, a) for a in args]
+        if q_gfk.children:
+            new_args.append(q_gfk)
+        return new_args, rest
+
+    def filter(self, *args, **kwargs):
+        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
+        return super().filter(*new_args, **rest)
+
+    def exclude(self, *args, **kwargs):
+        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
+        return super().exclude(*new_args, **rest)
+
+    def get(self, *args, **kwargs):
+        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
+        return super().get(*new_args, **rest)
+
+
+class AutoGenericForeignKeyPolymorphicQuerySet(AutoGenericForeignKeyRewriteMixin, PolymorphicQuerySet):
+    """
+    QuerySet polimórfico com reescrita de lookups de GFK/AutoGenericForeignKey.
+    MRO importa: nosso mixin vem primeiro para interceptar filter/exclude/get.
     """
     pass
 
-
-class AutoGenericForeignKeyModel(models.Model):
-    """
-    Base model (abstract) that already exposes the GFK-compatible manager.
-    """
-    objects = AutoGenericForeignKeyManager()
-
-    class Meta:
-        abstract = True

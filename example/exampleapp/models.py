@@ -1,11 +1,11 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from autogfk.fields import AutoGenericForeignKey
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Q
 
-from autogfk.query import AutoGenericForeignKeyManager, AutoGenericForeignKeyModel
-from autogfk.polymorphic import AutoGenericForeignKeyPolymorphicModel
+from autogfk.models import AutoGenericForeignKeyModel, AutoGenericForeignKeyPolymorphicModel
+from autogfk.managers import AutoGenericForeignKeyManager
 
 class ModelA(models.Model):
     name = models.CharField(max_length=120)
@@ -202,6 +202,8 @@ class ExampleChild(models.Model):
         label="A (auto)",
         related_name="children_as_a",
     )
+
+    fk_b = models.ForeignKey(ModelB, on_delete=models.CASCADE, related_name="children_as_fk_b", null=True, blank=True)
     class Meta:
         verbose_name = "Child"
         verbose_name_plural = "Children"

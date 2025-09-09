@@ -54,7 +54,7 @@ class AutoGenericForeignKey(GenericForeignKey):
             if forbidden:
                 raise ImproperlyConfigured(
                     "AutoGenericForeignKey: when using custom ct_field/oid_field, do NOT pass these "
-                    f"options on the AutoGFK constructor; define them on your custom fields instead: {list(forbidden.keys())}."
+                    f"options on the AutoGenericForeignKey constructor; define them on your custom fields instead: {list(forbidden.keys())}."
                 )
         # Store options (for auto-created fields only)
         # cant use self.null and self.blank because they are ignored in the superclass constructor, so will always be False on contribute_to_class and deconstruct

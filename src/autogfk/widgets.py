@@ -3,8 +3,10 @@ from __future__ import annotations
 from django import forms
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 import json
-class AutoGenericWidget(forms.MultiWidget):
+class AutoGenericForeignKeyWidget(forms.MultiWidget):
     def __init__(self, model_admin, admin_site, *, limit_ct_qs=None, show_app_label=True, attrs=None):
         self.admin_site = admin_site
         self.model_admin = model_admin
@@ -15,24 +17,31 @@ class AutoGenericWidget(forms.MultiWidget):
 
         # 1º select = ContentType
         ct_widget = forms.Select(attrs={
-            "class": "autogfk-select",
+            "class": "autogfk-select autogfk-content-type",
             "data-autogfk": "ct",
             "data-autogfk-show-app-label": "1" if show_app_label else "0",
         })
         qs = limit_ct_qs if limit_ct_qs is not None else ContentType.objects.all()
         ct_pairs = [(ct.pk, self._ct_label(ct)) for ct in qs]
         ct_widget.choices = [("", "---------")] + ct_pairs
+
+        # map to build admin URLs in the front: [[id, app, model], ...]
+        ct_map = [[ct.pk, ct.app_label, ct.model] for ct in qs]        
+        ct_widget.attrs["data-autogfk-ctmap"] = json.dumps(ct_map)
         # embed choices to rehydrate in inline lines added via JS
         try:
             ct_widget.attrs["data-autogfk-choices"] = json.dumps(ct_pairs)
         except Exception:
             pass
+
         # 2nd select = object (populated by AJAX, but we'll pre-populate on render if there's a value)
         obj_widget = forms.Select(attrs={
-            "class": "autogfk-select",
+            "class": "autogfk-select autogfk-object-id",
             "data-autogfk": "obj",
             "data-autogfk-url": reverse("autogfk:autocomplete"),
-        })        
+            # admin root to compose /admin/<app>/<model>/...
+            "data-autogfk-admin-root": reverse("admin:index"),
+        })
 
         super().__init__([ct_widget, obj_widget], attrs)
 
@@ -92,7 +101,11 @@ class AutoGenericWidget(forms.MultiWidget):
                 # don't interrupt render due to specific failures
                 pass
 
-        return super().render(name, value, attrs=attrs, renderer=renderer)
+        html = super().render(name, value, attrs=attrs, renderer=renderer)        
+        return format_html(
+            '<div class="related-widget-wrapper autogfk-wrapper">{}</div>',
+            mark_safe(html),
+        )
 
     class Media:
         js = (

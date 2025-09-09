@@ -3,7 +3,7 @@ from typing import Optional
 from django import forms
 from django.contrib.contenttypes.models import ContentType
 
-class AutoGenericFormField(forms.MultiValueField):
+class AutoGenericForeignKeyFormField(forms.MultiValueField):
     def __init__(self, *, label: Optional[str] = None, required: bool = False, limit_ct_qs=None):
         fields = (
             forms.ModelChoiceField(queryset=limit_ct_qs or ContentType.objects.all(), required=required),
