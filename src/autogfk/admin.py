@@ -1,5 +1,6 @@
 from __future__ import annotations
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Q
 from .forms import AutoGenericFormField
 from .widgets import AutoGenericWidget
@@ -36,13 +37,47 @@ def _apply_limit_choices(qs, lct):
 class AutoGenericAdminMixin:
     # Controls whether the CT select shows 'app_label | verbose_name' or only the model label
     show_app_label_on_ct_field = True    
+    
+    # Controls whether the widget is enabled for plain GenericForeignKey fields as well
+    enable_widget_for_genericforeignkey = True
+
+    def _discover_plain_gfk_specs(self):
+        """
+        Descobre GenericForeignKeys PUROS no model (sem ser AutoGenericForeignKey),
+        e retorna um dict compatível com _autogfk_fields.
+        """
+        specs = {}
+        model = getattr(self, "model", None)
+        if not model:
+            return specs
+        for f in getattr(model._meta, "private_fields", []):
+            # Em Django, GenericForeignKey é 'private_field'
+            if isinstance(f, GenericForeignKey):
+                name = f.name
+                ct_field = f.ct_field
+                oid_field = f.fk_field
+                label = getattr(f, "verbose_name", None) or name.replace("_", " ").title()
+                specs[name] = {
+                    "ct_field": ct_field,
+                    "oid_field": oid_field,
+                    "limit_choices_to": None,   # will be read from the CT FK later
+                    "label": label,
+                    "_source": "plain_gfk",
+                }
+        return specs
+
 
     def _surrogate(self, logical_name: str) -> str:
         return f"{logical_name}{SURROGATE_SUFFIX}"
 
     def _specs(self):
         model = getattr(self, "model", None)
-        return getattr(model, "_autogfk_fields", {}) if model else {}
+        base = dict(getattr(model, "_autogfk_fields", {}) if model else {})
+        if model and getattr(self, "enable_plain_genericforeignkey", True):
+            # mescla GFKs puros sem sobrescrever AutoGFKs homônimos
+            for k, v in self._discover_plain_gfk_specs().items():
+                base.setdefault(k, v)
+        return base
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         try:

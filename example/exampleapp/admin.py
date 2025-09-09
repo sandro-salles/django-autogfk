@@ -1,6 +1,6 @@
 from django.contrib import admin
 from autogfk.admin import AutoGenericAdminMixin
-from .models import ModelA, ModelB, ModelCRequired, Example
+from .models import ExamplePlainGFK, ModelA, ModelB, ModelCRequired, Example
 
 @admin.register(ModelA)
 class ModelAAdmin(admin.ModelAdmin):
@@ -21,3 +21,13 @@ class ModelCRequiredAdmin(admin.ModelAdmin):
 class ExampleAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
     show_app_label_on_ct_field = False
     list_display = ("id", "field_a", "field_b", "field_c", "notes")
+
+
+@admin.register(ExamplePlainGFK)
+class ExamplePlainGFKAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "target")
+    # optional - controls if the CT select will show/hide the app_label
+    show_app_label_on_ct_field = False
+
+    # optional - controls if the widget is enabled for plain GenericForeignKey fields as well
+    enable_plain_genericforeignkey = False

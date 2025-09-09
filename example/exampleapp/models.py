@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from autogfk.fields import AutoGenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db.models import Q
 
 class ModelA(models.Model):
@@ -77,3 +78,16 @@ class Example(models.Model):
     class Meta:
         verbose_name = "Example"
         verbose_name_plural = "Examples"
+
+
+ALLOW_AB = Q(app_label="exampleapp", model__in=["modela", "modelb"])
+
+class ExamplePlainGFK(models.Model):
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.PROTECT,
+        limit_choices_to=ALLOW_AB,
+        null=False, blank=False,
+    )
+    target_object_id = models.PositiveIntegerField()
+    target = GenericForeignKey("target_content_type", "target_object_id")        

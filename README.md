@@ -113,6 +113,56 @@ You’ll see **two linked Select2 dropdowns**:
 
 ---
 
+#### 2.1) Use the Admin mixin with a *plain* `GenericForeignKey`
+
+You don’t have to migrate your models to `AutoGenericForeignKey` to get the nice admin UX.
+Just plug `AutoGenericAdminMixin` into your `ModelAdmin` and it will render the **same Select2 widget**
+for any existing `GenericForeignKey` (CT → Object, with autocomplete, validation, and paging).
+
+- Works **side-by-side** with `AutoGenericForeignKey`.
+- Reads `limit_choices_to` **directly from your `ForeignKey(ContentType)`** (dict, `Q`, callable, or list/tuple).
+- Enforces requiredness based on the **physical fields** (`null`/`blank`) and prevents partial input.
+- Toggle labels: show or hide `app_label` in the CT select.
+
+### Example (plain GFK model)
+
+```python
+# models.py
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.db import models
+from django.db.models import Q
+
+ALLOW_AB = Q(app_label="exampleapp", model__in=["modela", "modelb"])
+
+class ExamplePlainGFK(models.Model):
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.PROTECT,
+        limit_choices_to=ALLOW_AB,   # ← the admin mixin will respect this
+        null=False, blank=False,     # ← makes the pair required in the form
+    )
+    target_object_id = models.PositiveIntegerField()
+    target = GenericForeignKey("target_content_type", "target_object_id")
+
+    def __str__(self):
+        return f"{self.target_content_type} #{self.target_object_id}"
+
+# admin.py
+from django.contrib import admin
+from autogfk.admin import AutoGenericAdminMixin
+from .models import Example
+
+@admin.register(ExamplePlainGFK)
+class ExamplePlainGFKAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "target")
+    # optional - controls if the CT select will show/hide the app_label
+    show_app_label_on_ct_field = False
+
+    # optional - controls if the widget is enabled for plain GenericForeignKey fields as well
+    enable_plain_genericforeignkey = True
+```
+
 ## 🧩 Example project (runnable)
 
 A fully working Django project lives in `example/`:
