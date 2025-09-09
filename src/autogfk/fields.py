@@ -57,8 +57,10 @@ class AutoGenericForeignKey(GenericForeignKey):
                     f"options on the AutoGFK constructor; define them on your custom fields instead: {list(forbidden.keys())}."
                 )
         # Store options (for auto-created fields only)
-        self.null = null
-        self.blank = blank
+        # cant use self.null and self.blank because they are ignored in the superclass constructor, so will always be False on contribute_to_class and deconstruct
+        self._auto_null = bool(null)
+        self._auto_blank = bool(blank)
+
         self.limit_choices_to = limit_choices_to if self._owns_fields else None
         self.related_name = related_name if self._owns_fields else None
         self.on_delete = on_delete if self._owns_fields else None
@@ -67,11 +69,12 @@ class AutoGenericForeignKey(GenericForeignKey):
     def deconstruct(self):
         path = f"{self.__class__.__module__}.{self.__class__.__name__}"
         # Export kwargs only as needed
+
         kwargs = {
             "ct_field": None if (self._user_ct_field is None) else self._user_ct_field,
             "oid_field": None if (self._user_oid_field is None) else self._user_oid_field,
-            "null": self.null,
-            "blank": self.blank,
+            "null": self._auto_null,
+            "blank": self._auto_blank,
         }
         if self._owns_fields:
             if self.limit_choices_to is not None:
@@ -91,16 +94,26 @@ class AutoGenericForeignKey(GenericForeignKey):
             if not hasattr(cls, ct_field_name):
                 ct_kwargs = {
                     "on_delete": self.on_delete or models.CASCADE,
-                    "null": self.null,
-                    "blank": self.blank,
+                    "null": self._auto_null,
+                    "blank": self._auto_blank,
                     "related_name": self.related_name,
                 }
                 if self.limit_choices_to is not None:
                     ct_kwargs["limit_choices_to"] = self.limit_choices_to
+                # TIP: in some setups the autodetector is more stable seeing default=None when null=True
+                if self._auto_null and "default" not in ct_kwargs:
+                    ct_kwargs["default"] = None
                 ct = models.ForeignKey(ContentType, **ct_kwargs)
                 ct.contribute_to_class(cls, ct_field_name)
             if not hasattr(cls, oid_field_name):
-                oid = models.PositiveIntegerField(null=self.null, blank=self.blank, db_index=True)
+                oid_kwargs = {
+                    "null": self._auto_null,
+                    "blank": self._auto_blank,
+                    "db_index": True,
+                }
+                if self._auto_null and "default" not in oid_kwargs:
+                    oid_kwargs["default"] = None
+                oid = models.PositiveIntegerField(**oid_kwargs)
                 oid.contribute_to_class(cls, oid_field_name)
         else:
             # Custom fields: ensure they EXIST
@@ -117,6 +130,7 @@ class AutoGenericForeignKey(GenericForeignKey):
         self.fk_field = oid_field_name
         self.model = cls
         self.name = name
+
         super().contribute_to_class(cls, name)
         # Metadata for Admin
         if not hasattr(cls, "_autogfk_fields"):

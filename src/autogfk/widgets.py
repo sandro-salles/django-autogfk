@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
-
+import json
 class AutoGenericWidget(forms.MultiWidget):
     def __init__(self, model_admin, admin_site, *, limit_ct_qs=None, show_app_label=True, attrs=None):
         self.admin_site = admin_site
@@ -15,19 +15,24 @@ class AutoGenericWidget(forms.MultiWidget):
 
         # 1º select = ContentType
         ct_widget = forms.Select(attrs={
-            "class": "admin-autocomplete",
+            "class": "autogfk-select",
             "data-autogfk": "ct",
             "data-autogfk-show-app-label": "1" if show_app_label else "0",
         })
         qs = limit_ct_qs if limit_ct_qs is not None else ContentType.objects.all()
-        ct_widget.choices = [("", "---------")] + [(ct.pk, self._ct_label(ct)) for ct in qs]
-
+        ct_pairs = [(ct.pk, self._ct_label(ct)) for ct in qs]
+        ct_widget.choices = [("", "---------")] + ct_pairs
+        # embed choices to rehydrate in inline lines added via JS
+        try:
+            ct_widget.attrs["data-autogfk-choices"] = json.dumps(ct_pairs)
+        except Exception:
+            pass
         # 2nd select = object (populated by AJAX, but we'll pre-populate on render if there's a value)
         obj_widget = forms.Select(attrs={
-            "data-autocomplete-url": reverse("autogfk:autocomplete"),
-            "class": "admin-autocomplete",
+            "class": "autogfk-select",
             "data-autogfk": "obj",
-        })
+            "data-autogfk-url": reverse("autogfk:autocomplete"),
+        })        
 
         super().__init__([ct_widget, obj_widget], attrs)
 

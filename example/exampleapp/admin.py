@@ -1,6 +1,7 @@
 from django.contrib import admin
 from autogfk.admin import AutoGenericAdminMixin
-from .models import ExamplePlainGFK, ModelA, ModelB, ModelCRequired, Example
+from autogfk.inlines import AutoGenericInlineMixin
+from .models import ExampleChild, ExampleInheriting, ExampleParent, ExamplePlainGFK, ExamplePoly, ExamplePolyChild, ExampleUsingManager, ModelA, ModelB, ModelCRequired, Example
 
 @admin.register(ModelA)
 class ModelAAdmin(admin.ModelAdmin):
@@ -19,6 +20,7 @@ class ModelCRequiredAdmin(admin.ModelAdmin):
 
 @admin.register(Example)
 class ExampleAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    # optional - controls if the CT select will show/hide the app_label
     show_app_label_on_ct_field = False
     list_display = ("id", "field_a", "field_b", "field_c", "notes")
 
@@ -31,3 +33,44 @@ class ExamplePlainGFKAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
 
     # optional - controls if the widget is enabled for plain GenericForeignKey fields as well
     enable_plain_genericforeignkey = False
+
+
+@admin.register(ExampleInheriting)
+class ExampleInheritingAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "field_a", "target", "notes")
+    # optional - controls if the CT select will show/hide the app_label
+    show_app_label_on_ct_field = False
+
+    # optional - controls if the widget is enabled for plain GenericForeignKey fields as well
+    enable_plain_genericforeignkey = True
+
+@admin.register(ExampleUsingManager)
+class ExampleUsingManagerAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "field_b", "owner", "notes")
+    # optional - controls if the CT select will show/hide the app_label
+    show_app_label_on_ct_field = False
+
+    # optional - controls if the widget is enabled for plain GenericForeignKey fields as well
+    enable_plain_genericforeignkey = False
+
+
+@admin.register(ExamplePoly)
+class ExamplePolyAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "field_a", "notes")
+    # optional - controls if the CT select will show/hide the app_label
+    show_app_label_on_ct_field = False
+
+@admin.register(ExamplePolyChild)
+class ExamplePolyChildAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    list_display = ("id", "field_a", "extra")
+
+
+
+class ExampleChildInline(AutoGenericInlineMixin, admin.StackedInline):
+    model = ExampleChild
+    extra = 1
+    show_app_label_on_ct_field = False  # opcional
+
+@admin.register(ExampleParent)
+class ExampleParentAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    inlines = [ExampleChildInline]
