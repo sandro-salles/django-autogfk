@@ -15,9 +15,17 @@
     if (!row || row.dataset.autogfkInitialized === "1") return;
     if (inEmptyForm(row)) return; // never init the template
     const ct = row.querySelector('select[data-autogfk="ct"]');
-    const obj = row.querySelector('select[data-autogfk="obj"]');
-    console.log(row.innerHTML);
-    const actionsSlot = row.querySelector('div.autogfk-wrapper');
+    let obj = row.querySelector('select[data-autogfk="obj"]');
+    const objParent = obj.parentNode;
+    const objWrapper = document.createElement('div');
+    objWrapper.innerHTML = obj.outerHTML;
+    objWrapper.classList.add('related-widget-wrapper');
+    objParent.appendChild(objWrapper);
+
+    // remove the original obj
+    obj.remove();
+    obj = objParent.querySelector('select[data-autogfk="obj"]');
+    const actionsSlot = row.querySelector('.related-widget-wrapper');
     if (!ct || !obj) return; // not our line
 
     function fetchOptions(term, page) {
@@ -53,9 +61,11 @@
     } catch (e) { /* silent */ }
 
     function safeDestroy($el) {
-      if ($el && ($el.data("select2") || $el.hasClass("select2-hidden-accessible"))) {
-        $el.select2("destroy");
-      }
+      try {
+        if ($el && ($el.data("select2") || $el.hasClass("select2-hidden-accessible"))) {
+          $el.select2("destroy");
+        }
+      } catch (e) { /* silent */ }
     }
 
 
@@ -84,7 +94,7 @@
       return {
         add: base + "add/?_to_field=id&_popup=1",
         edit: objId ? base + String(objId) + "/change/?_to_field=id&_popup=1" : null,
-        view: objId ? base + String(objId) + "/change/?_popup=1" : null, // uses change in view-only mode if permission is missing
+        template: base + "__fk__/change/?_to_field=id&_popup=1",
       };
     }
 
@@ -101,35 +111,38 @@
       if (!urls) return;
 
       // helper to create link that opens the admin popup
-      function mkLink(href, css, title, onclickName) {
+      function mkLink(href, css, title) {
         const a = document.createElement("a");
         if (href) {
           a.href = href;
         }
         a.className = "related-widget-wrapper-link " + css;
         a.title = title;
+        a.setAttribute("data-popup", "yes");
         // id in the standard admin helps dismissAddRelatedObjectPopup:
         // "add_id_<fieldId>" / "change_id_<fieldId>" / "view_id_<fieldId>"
         const fieldId = obj.id || "";
-        if (css.indexOf("add-related") !== -1) a.id = "add_id_" + fieldId;
-        if (css.indexOf("change-related") !== -1) a.id = "change_id_" + fieldId;
-        if (css.indexOf("view-related") !== -1) a.id = "view_id_" + fieldId;
+        if (css.indexOf("add-related") !== -1) a.id = "add_" + fieldId;
+        if (css.indexOf("change-related") !== -1) {
+          a.id = "change_" + fieldId;
+          a.setAttribute("data-href-template", urls.template);
+        };
         // use global admin functions to open popup
-        a.setAttribute("onclick", "return " + onclickName + "(this);");
         return a;
       }
 
       // With CT and object → shows add, change, view
       if (ctVal) {
-        const aAdd = mkLink(urls.add, "add-related", "Add another", "showAddAnotherPopup");
+
+        const meta = CTMAP[ctVal];
+
+        const aAdd = mkLink(urls.add, "add-related", "Add another");
         aAdd.innerHTML = '<img src="/static/admin/img/icon-addlink.svg" alt="">'
-        const aEdit = mkLink(buildAdminUrls(ctVal, objVal).edit, "change-related", "Change", "showRelatedObjectLookupPopup");
+        const aEdit = mkLink(buildAdminUrls(ctVal, objVal).edit, "change-related", "Change");
         aEdit.innerHTML = '<img src="/static/admin/img/icon-changelink.svg" alt="">'
-        const aView = mkLink(buildAdminUrls(ctVal, objVal).view, "view-related", "View", "showRelatedObjectLookupPopup");
-        aView.innerHTML = '<img src="/static/admin/img/icon-viewlink.svg" alt="">'
         actionsSlot.appendChild(aEdit);
         actionsSlot.appendChild(aAdd);
-        actionsSlot.appendChild(aView);
+        obj.parentNode.setAttribute('data-model-ref', meta.model);
       }
     }
 

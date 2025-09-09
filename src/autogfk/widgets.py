@@ -40,7 +40,7 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
             "data-autogfk": "obj",
             "data-autogfk-url": reverse("autogfk:autocomplete"),
             # admin root to compose /admin/<app>/<model>/...
-            "data-autogfk-admin-root": reverse("admin:index"),
+            "data-autogfk-admin-root": reverse("admin:index")
         })
 
         super().__init__([ct_widget, obj_widget], attrs)
@@ -103,7 +103,7 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
 
         html = super().render(name, value, attrs=attrs, renderer=renderer)        
         return format_html(
-            '<div class="related-widget-wrapper autogfk-wrapper">{}</div>',
+            '{}<div class="autogfk-actions" data-autogfk-actions></div>',
             mark_safe(html),
         )
 

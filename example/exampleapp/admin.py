@@ -68,8 +68,11 @@ class ExamplePolyChildAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
 class ExampleChildInline(AutoGenericForeignKeyInlineAdminMixin, admin.StackedInline):
     model = ExampleChild
     extra = 1
-    show_app_label_on_ct_field = False  # opcional
+    show_app_label_on_ct_field = False
+    autocomplete_fields = ["fk_b"]  # opcional
 
 @admin.register(ExampleParent)
 class ExampleParentAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
     inlines = [ExampleChildInline]
+
+    
