@@ -40,9 +40,10 @@ class ModelCRequired(models.Model):
         verbose_name = "Model C Required"
         verbose_name_plural = "Models C Required"
 
-# exemplo permitindo apenas ModelA e ModelB
+# example allowing only ModelA, ModelB and ModelCRequired
 OWNER_LIMIT_CHOICES_TO = Q(app_label="exampleapp", model__in=["modela", "modelb", "modelcrequired"])
 
+# example allowing only ModelCRequired
 OWNER_LIMIT_CHOICES_TO_CUSTOM_C = Q(app_label="exampleapp", model__in=["modelcrequired"])
 
 class Example(models.Model):
@@ -61,7 +62,7 @@ class Example(models.Model):
         label="Field B",
     )
 
-    # exemplo customizando os nomes dos campos content_type e object_id
+    # example customizing the names of content_type and object_id fields
     custom_c_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="as_c", limit_choices_to=OWNER_LIMIT_CHOICES_TO_CUSTOM_C)
     custom_c_object_id = models.PositiveIntegerField(db_index=True)
     

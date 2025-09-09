@@ -7,16 +7,16 @@ from django.core.exceptions import ImproperlyConfigured
 _SENTINEL = object()
 class AutoGenericForeignKey(GenericForeignKey):
     """
-    GenericForeignKey com auto-criação de campos auxiliares e metadados para o Admin.
-    Regras de validação:
-    - Se `ct_field` for informado, `oid_field` também deve ser informado (e vice-versa).
-    - Se `ct_field`/`oid_field` forem informados (campos *custom*), NÃO é permitido
-      passar: `limit_choices_to`, `related_name`, `on_delete`, `null`, `blank`.
-      Esses parâmetros devem ser definidos diretamente nos campos custom declarados.
-    - Se NÃO houver `ct_field`/`oid_field` (modo *auto*), o campo criará:
+    GenericForeignKey with auto-creation of auxiliary fields and metadata for Admin.
+    Validation rules:
+    - If `ct_field` is provided, `oid_field` must also be provided (and vice-versa).
+    - If `ct_field`/`oid_field` are provided (custom fields), it is NOT allowed
+      to pass: `limit_choices_to`, `related_name`, `on_delete`, `null`, `blank`.
+      These parameters must be defined directly on the declared custom fields.
+    - If there is NO `ct_field`/`oid_field` (auto mode), the field will create:
         * <name>_content_type = FK(ContentType, on_delete=..., limit_choices_to=...)
         * <name>_object_id   = PositiveIntegerField(null/blank=...)
-      e propagará os parâmetros citados acima.
+      and will propagate the parameters mentioned above.
     """
     def __init__(
             self,
@@ -30,7 +30,7 @@ class AutoGenericForeignKey(GenericForeignKey):
         on_delete: Optional[object] = None,
         label: Optional[str] = None,
     ) -> None:
-        # Regras de pareamento ct/oid
+        # ct/oid pairing rules
         if (ct_field is None) ^ (oid_field is None):
             raise ImproperlyConfigured(
                 "AutoGenericForeignKey: if you provide ct_field or oid_field, you must provide BOTH."
@@ -38,7 +38,7 @@ class AutoGenericForeignKey(GenericForeignKey):
         self._user_ct_field = ct_field
         self._user_oid_field = oid_field
         self._owns_fields = ct_field is None and oid_field is None
-        # Validações quando o usuário declara campos custom
+        # Validations when user declares custom fields
         if not self._owns_fields:
             forbidden = {}
             if limit_choices_to is not None:
@@ -87,7 +87,7 @@ class AutoGenericForeignKey(GenericForeignKey):
         ct_field_name = self._user_ct_field or f"{name}_content_type"
         oid_field_name = self._user_oid_field or f"{name}_object_id"
         if self._owns_fields:
-            # Auto-criação dos campos físicos
+            # Auto-creation of physical fields
             if not hasattr(cls, ct_field_name):
                 ct_kwargs = {
                     "on_delete": self.on_delete or models.CASCADE,
@@ -103,7 +103,7 @@ class AutoGenericForeignKey(GenericForeignKey):
                 oid = models.PositiveIntegerField(null=self.null, blank=self.blank, db_index=True)
                 oid.contribute_to_class(cls, oid_field_name)
         else:
-            # Campos custom: garanta que EXISTEM
+            # Custom fields: ensure they EXIST
             try:
                 cls._meta.get_field(ct_field_name)
                 cls._meta.get_field(oid_field_name)
@@ -112,18 +112,18 @@ class AutoGenericForeignKey(GenericForeignKey):
                     "AutoGenericForeignKey: custom ct_field/oid_field were provided but not found on the model. "
                     f"Declare both fields on the model: '{ct_field_name}' (FK to ContentType) and '{oid_field_name}' (object id)."
                 ) from e
-        # Configure o GFK propriamente dito
+        # Configure the GFK itself
         self.ct_field = ct_field_name
         self.fk_field = oid_field_name
         self.model = cls
         self.name = name
         super().contribute_to_class(cls, name)
-        # Metadados para o Admin
+        # Metadata for Admin
         if not hasattr(cls, "_autogfk_fields"):
             cls._autogfk_fields = {}
         cls._autogfk_fields[name] = {
             "ct_field": ct_field_name,
             "oid_field": oid_field_name,
-            "limit_choices_to": self.limit_choices_to,  # pode ser None em campos custom
+            "limit_choices_to": self.limit_choices_to,  # can be None for custom fields
             "label": self.label or name.replace("_", " ").title(),
         }

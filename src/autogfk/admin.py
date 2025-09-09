@@ -9,8 +9,8 @@ SURROGATE_SUFFIX = "__autogfk"
 
 def _apply_limit_choices(qs, lct):
     """
-    Aceita dict, Q ou callable retornando dict/Q.
-    Também aceita listas/tuplas de Q/dicts (faz AND).
+    Accepts dict, Q or callable returning dict/Q.
+    Also accepts lists/tuples of Q/dicts (does AND).
     """
     if lct is None:
         return qs
@@ -30,7 +30,7 @@ def _apply_limit_choices(qs, lct):
             elif isinstance(item, dict):
                 cond &= Q(**item)
         return qs.filter(cond) if cond else qs
-    # fallback: não aplicar se for um tipo inesperado
+    # fallback: don't apply if it's an unexpected type
     return qs
 
 class AutoGenericAdminMixin:
@@ -56,7 +56,7 @@ class AutoGenericAdminMixin:
         specs = self._specs()
         model = self.model
 
-        # 1) Base 'fields' = apenas campos reais editáveis; remove ct/oid e lógicos
+        # 1) Base 'fields' = only real editable fields; remove ct/oid and logical
         real_fields = [f.name for f in model._meta.get_fields()
                        if getattr(f, "editable", False) and not f.auto_created]
         for logical, meta in specs.items():
@@ -70,8 +70,8 @@ class AutoGenericAdminMixin:
         if not specs:
             return base_form
 
-        # 2) Cria UMA subclasse única e injeta TODOS os surrogates
-        #    Também consolida Meta.exclude para esconder todos ct/oid.
+        # 2) Create ONE unique subclass and inject ALL surrogates
+        #    Also consolidate Meta.exclude to hide all ct/oid.
         all_exclude = list(getattr(getattr(base_form, "Meta", object), "exclude", []) or [])
         for meta in specs.values():
             for f in (meta["ct_field"], meta["oid_field"]):
@@ -82,7 +82,7 @@ class AutoGenericAdminMixin:
             class Meta(base_form.Meta if hasattr(base_form, "Meta") else object):
                 exclude = all_exclude
 
-        # Adiciona todos os campos surrogate
+        # Add all surrogate fields
         for logical, meta in specs.items():
             ct_field = meta["ct_field"]
             oid_field = meta["oid_field"]
@@ -91,9 +91,9 @@ class AutoGenericAdminMixin:
             label = meta.get("label")
             surrogate = self._surrogate(logical)
 
-            # Queryset de ContentType respeitando limit_choices_to:
-            # 1) Se o AutoGFK auto-criou o FK, usamos o meta["limit_choices_to"];
-            # 2) Se o usuário declarou um FK custom, lemos o limit_choices_to diretamente do FK.
+            # ContentType queryset respecting limit_choices_to:
+            # 1) If the AutoGFK auto-created the FK, we use meta["limit_choices_to"];
+            # 2) If the user declared a custom FK, we read limit_choices_to directly from the FK.
             ct_qs = ContentType.objects.all()
             lct = meta.get("limit_choices_to")
             if not lct:
@@ -104,7 +104,7 @@ class AutoGenericAdminMixin:
                     lct = None
             ct_qs = _apply_limit_choices(ct_qs, lct)
 
-            # regra: o par é "obrigatório" se QUALQUER dos físicos não aceita vazio (null=False e blank=False)
+            # rule: the pair is "required" if ANY of the physical fields doesn't accept empty (null=False and blank=False)
             pair_required = (not getattr(ct_model_field, "null", True) and not getattr(ct_model_field, "blank", True)) \
                             or (not getattr(oid_model_field, "null", True) and not getattr(oid_model_field, "blank", True))
 
@@ -117,7 +117,7 @@ class AutoGenericAdminMixin:
                 f.initial = (ct_val, oid_val)
             UnifiedForm.base_fields[surrogate] = f
 
-        # Wrap do save: percorre todos os surrogates e propaga ct/oid
+        # Wrap the save: iterate over all surrogates and propagate ct/oid
         orig_save = UnifiedForm.save
         def _save(self2, commit=True):
             for logical, meta in specs.items():
@@ -142,14 +142,14 @@ class AutoGenericAdminMixin:
         title, opts = fieldsets[0]
         fields = list(opts.get("fields", []))
 
-        # Sempre esconda físicos
+        # Always hide physical fields
         for meta in specs.values():
             for f in (meta["ct_field"], meta["oid_field"]):
                 if f in fields:
                     fields.remove(f)
 
         if getattr(self, "_autogfk_rendering", False):
-            # Renderização: insira surrogates, remova lógicos
+            # Rendering: insert surrogates, remove logical
             for logical in list(specs.keys()):
                 if logical in fields:
                     fields.remove(logical)
@@ -158,7 +158,7 @@ class AutoGenericAdminMixin:
                 if sur not in fields:
                     fields.insert(0, sur)
         else:
-            # Construção do form: remova lógicos e surrogates
+            # Form construction: remove logical and surrogates
             for logical in specs.keys():
                 for rm in (logical, self._surrogate(logical)):
                     if rm in fields:

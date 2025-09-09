@@ -22,7 +22,7 @@ class AutoGenericWidget(forms.MultiWidget):
         qs = limit_ct_qs if limit_ct_qs is not None else ContentType.objects.all()
         ct_widget.choices = [("", "---------")] + [(ct.pk, self._ct_label(ct)) for ct in qs]
 
-        # 2º select = objeto (preenchido por AJAX, mas vamos pré-popular no render se houver valor)
+        # 2nd select = object (populated by AJAX, but we'll pre-populate on render if there's a value)
         obj_widget = forms.Select(attrs={
             "data-autocomplete-url": reverse("autogfk:autocomplete"),
             "class": "admin-autocomplete",
@@ -45,7 +45,7 @@ class AutoGenericWidget(forms.MultiWidget):
 
 
     def decompress(self, value):
-        # value pode vir como (ct_id, obj_id) OU dict {"content_type": <CT|id>, "object_id": id}
+        # value can come as (ct_id, obj_id) OR dict {"content_type": <CT|id>, "object_id": id}
         if not value:
             return [None, None]
         if isinstance(value, dict):
@@ -54,10 +54,10 @@ class AutoGenericWidget(forms.MultiWidget):
             return [ct_id, value.get("object_id")]
         return [value[0], value[1]]
 
-    # pré-popula o 2º select com o option selecionado
+    # pre-populate the 2nd select with the selected option
     def render(self, name, value, attrs=None, renderer=None):
 
-        # normaliza
+        # normalize
         ct_id = obj_id = None
         if isinstance(value, dict):
             ct = value.get("content_type")
@@ -66,7 +66,7 @@ class AutoGenericWidget(forms.MultiWidget):
         elif isinstance(value, (list, tuple)) and len(value) >= 2:
             ct_id, obj_id = value[0], value[1]
 
-        # garante que o CT corrente esteja nas choices (caso o filtro tenha mudado)
+        # ensure that the current CT is in choices (in case the filter has changed)
         if ct_id:
             if all(str(ct_id) != str(v) for v, _ in self.widgets[0].choices):
                 try:
@@ -75,7 +75,7 @@ class AutoGenericWidget(forms.MultiWidget):
                 except ContentType.DoesNotExist:
                     pass
 
-        # se já tem (ct_id, obj_id), injeta a option selecionada no 2º select
+        # if we already have (ct_id, obj_id), inject the selected option in the 2nd select
         if ct_id and obj_id:
             try:
                 model = ContentType.objects.get(pk=ct_id).model_class()
@@ -84,7 +84,7 @@ class AutoGenericWidget(forms.MultiWidget):
                     if obj is not None:
                         self.widgets[1].choices = [(obj.pk, str(obj))]  # <- option selected
             except Exception:
-                # não interrompe o render por falhas pontuais
+                # don't interrupt render due to specific failures
                 pass
 
         return super().render(name, value, attrs=attrs, renderer=renderer)

@@ -71,12 +71,12 @@ from autogfk.fields import AutoGenericForeignKey
 # Example: allow only content types from specific apps
 OWNER_LIMIT_CHOICES_TO = {"app_label__in": ["auth", "bots"]}
 
-class IntelligenceCredentials(models.Model):
+class Example(models.Model):
     owner = AutoGenericForeignKey(
         null=True,
         blank=True,
         limit_choices_to=OWNER_LIMIT_CHOICES_TO,
-        related_name="intelligence_credentials",
+        related_name="examples",
         label="Owner",
     )
 
@@ -98,10 +98,11 @@ python manage.py migrate
 # admin.py
 from django.contrib import admin
 from autogfk.admin import AutoGenericAdminMixin
-from .models import IntelligenceCredentials
+from .models import Example
 
 @admin.register(IntelligenceCredentials)
-class IntelligenceCredentialsAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+class ExampleAdmin(AutoGenericAdminMixin, admin.ModelAdmin):
+    show_app_label_on_ct_field = False # constrols if ct select will show/hide the app_label
     list_display = ("id", "owner", "name")
 ```
 
@@ -127,8 +128,8 @@ python manage.py runserver
 
 Navigate to http://127.0.0.1:8000/admin/ and test the **Example** model.  
 It contains:
-- `ModelA` and `ModelB` (sample models),
-- `Example` with **two** `AutoGenericForeignKey` fields: `field_a` and `field_b`.
+- `ModelA`, `ModelB` and `ModelCRequired` (sample models),
+- `Example` with **three** `AutoGenericForeignKey` fields: `field_a`, `field_b` and `field_c`.
 
 ---
 

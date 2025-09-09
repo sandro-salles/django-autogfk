@@ -23,7 +23,7 @@
         .catch(() => ({ results: [], more: false }));
     }
 
-    // 👇 Django 5 expõe jQuery como django.jQuery
+    // 👇 Django 5 exposes jQuery as django.jQuery
     const $ = (window.django && window.django.jQuery) || window.jQuery || window.$;
     if (!$ || !$.fn || !$.fn.select2) return;
 
