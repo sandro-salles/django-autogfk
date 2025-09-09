@@ -1,1 +1,11 @@
-.select2-container { min-width: 24rem; }
+[data-autogfk-initialized="1"] .select2-container {   
+    min-width: 24rem;
+}
+
+[data-autogfk-initialized="1"] .select2-container:nth-of-type(1) {   
+    margin-right: 0.5rem;    
+}
+
+[data-autogfk-initialized="1"] [data-autogfk-show-app-label="0"] ~ .select2-container:nth-of-type(1) {   
+    min-width: 12rem;
+}
