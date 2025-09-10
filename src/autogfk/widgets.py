@@ -172,6 +172,7 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
 
         if bool(ct_id and obj_id):
             ctx["widget"]["data_href_template"] = f'/{obj._meta.app_label}/{obj._meta.model_name}/__fk__/change/?_to_field=id&_popup=1'
+            ctx["widget"]["href"] = f'/{obj._meta.app_label}/{obj._meta.model_name}/{obj.pk}/change/?_to_field=id&_popup=1'
         return ctx
 
     class Media:

@@ -16,3 +16,11 @@
     pointer-events: none;
     cursor: not-allowed;
 }
+
+[data-autogfk-links] {
+    display: flex;
+    gap: 0 10px;
+    flex-grow: 1;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
