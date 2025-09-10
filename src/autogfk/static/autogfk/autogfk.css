@@ -31,3 +31,18 @@
     margin-bottom: 5px;
 }
 
+
+[data-autogfk-initialized]>div>div {
+    justify-content: stretch;
+    display: flex;
+  }
+  
+  [data-autogfk-initialized]>div>div .related-widget-wrapper,
+  [data-autogfk-initialized]>div>div .related-widget-wrapper .select2-container {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  [data-autogfk-initialized]>div>div .related-widget-wrapper {
+    margin: 0 0 0 0.2rem !important;
+  }
