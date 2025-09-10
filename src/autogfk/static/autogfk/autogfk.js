@@ -16,17 +16,13 @@
     if (inEmptyForm(row)) return; // never init the template
     const ct = row.querySelector('select[data-autogfk="ct"]');
     let obj = row.querySelector('select[data-autogfk="obj"]');
-    const objParent = obj.parentNode;
-    const objWrapper = document.createElement('div');
-    objWrapper.innerHTML = obj.outerHTML;
-    objWrapper.classList.add('related-widget-wrapper');
-    objParent.appendChild(objWrapper);
-
-    // remove the original obj
-    obj.remove();
-    obj = objParent.querySelector('select[data-autogfk="obj"]');
-    const actionsSlot = row.querySelector('.related-widget-wrapper');
     if (!ct || !obj) return; // not our line
+
+    const relatedWidgetWrapper = row.querySelector('[data-autogfk-wrapper]');
+    const addLink = row.querySelector('a.related-widget-wrapper-link.add-related');
+    const changeLink = row.querySelector('a.related-widget-wrapper-link.change-related');
+    const viewLink = row.querySelector('a.related-widget-wrapper-link.view-related');
+
 
     function fetchOptions(term, page) {
       const base = obj.getAttribute("data-autogfk-url");
@@ -60,12 +56,43 @@
       }
     } catch (e) { /* silent */ }
 
-    function safeDestroy($el) {
-      try {
-        if ($el && ($el.data("select2") || $el.hasClass("select2-hidden-accessible"))) {
-          $el.select2("destroy");
-        }
-      } catch (e) { /* silent */ }
+    // Retorna todas as instâncias de jQuery que podem existir no admin/app
+    function getJQList() {
+      var list = [];
+      if (window.django && window.django.jQuery) list.push(window.django.jQuery);
+      if (window.jQuery && list.indexOf(window.jQuery) === -1) list.push(window.jQuery);
+      return list;
+    }
+
+    // Checa se o select tem Select2 acoplado (robusto p/ 4.0.x e 4.1+)
+    function hasSelect2Attached(el, $jq) {
+      if (!el) return false;
+      // flags de Select2
+      if (el.classList && el.classList.contains('select2-hidden-accessible')) return true;
+      if (el.hasAttribute && el.hasAttribute('data-select2-id')) return true;
+      // via jQuery data
+      if ($jq) {
+        try {
+          var $el = $jq(el);
+          var d = $el.data('select2');
+          if (typeof d !== 'undefined' && d !== null) return true;
+        } catch (e) { }
+      }
+      return false;
+    }
+
+    // Destrói em TODAS as instâncias de jQuery que conhecemos, só se estiver anexado
+    function destroySelect2Everywhere(el) {
+      var jqs = getJQList();
+      for (var i = 0; i < jqs.length; i++) {
+        var $jq = jqs[i];
+        try {
+          var $el = $jq(el);
+          if (typeof $el.select2 === 'function' && hasSelect2Attached(el, $jq)) {
+            $el.select2('destroy'); // não deve logar warning
+          }
+        } catch (e) { /* silent */ }
+      }
     }
 
 
@@ -77,7 +104,17 @@
         const map = {};
         arr.forEach(function (triple) {
           if (triple && triple.length >= 3) {
-            map[String(triple[0])] = { app: String(triple[1]), model: String(triple[2]) };
+            var perms = { add: false, change: false, view: false };
+            if (triple.length >= 4 && triple[3] && typeof triple[3] === 'object') {
+              try {
+                perms = {
+                  add: !!triple[3].add,
+                  change: !!triple[3].change,
+                  view: !!triple[3].view,
+                };
+              } catch (e) { /* silent */ }
+            }
+            map[String(triple[0])] = { app: String(triple[1]), model: String(triple[2]), perms: perms };
           }
         });
         return map;
@@ -94,56 +131,57 @@
       return {
         add: base + "add/?_to_field=id&_popup=1",
         edit: objId ? base + String(objId) + "/change/?_to_field=id&_popup=1" : null,
+        view: objId ? base + String(objId) + "/change/?_to_field=id&_popup=1" : null,
         template: base + "__fk__/change/?_to_field=id&_popup=1",
       };
     }
 
     function updateActions() {
-      if (!actionsSlot) return;
       const ctVal = ct.value || "";
       const objVal = obj.value || "";
-      // delete all related-widget-wrapper-link
-      actionsSlot.querySelectorAll('a.related-widget-wrapper-link').forEach(function (a) {
-        a.remove();
-      });
-      if (!ctVal) return;                 // no CT → no buttons
-      const urls = buildAdminUrls(ctVal, objVal || "__");
-      if (!urls) return;
-
-      // helper to create link that opens the admin popup
-      function mkLink(href, css, title) {
-        const a = document.createElement("a");
-        if (href) {
-          a.href = href;
+      // Helper to toggle links according to permission while keeping layout stable
+      function setLink(el, enabled, href, templateHref) {
+        if (!el) return;
+        if (typeof href === 'string' && href.length) {
+          el.href = href;
         }
-        a.className = "related-widget-wrapper-link " + css;
-        a.title = title;
-        a.setAttribute("data-popup", "yes");
-        // id in the standard admin helps dismissAddRelatedObjectPopup:
-        // "add_id_<fieldId>" / "change_id_<fieldId>" / "view_id_<fieldId>"
-        const fieldId = obj.id || "";
-        if (css.indexOf("add-related") !== -1) a.id = "add_" + fieldId;
-        if (css.indexOf("change-related") !== -1) {
-          a.id = "change_" + fieldId;
-          a.setAttribute("data-href-template", urls.template);
-        };
-        // use global admin functions to open popup
-        return a;
+        if (typeof templateHref === 'string' && templateHref.length) {
+          el.setAttribute('data-href-template', templateHref);
+        }
+        if (enabled) {
+          el.classList.remove('autogfk-disabled-link');
+          el.removeAttribute('aria-disabled');
+          el.removeAttribute('tabindex');
+        } else {
+          el.classList.add('autogfk-disabled-link');
+          el.setAttribute('aria-disabled', 'true');
+          el.setAttribute('tabindex', '-1');
+        }
       }
 
-      // With CT and object → shows add, change, view
-      if (ctVal) {
-
-        const meta = CTMAP[ctVal];
-
-        const aAdd = mkLink(urls.add, "add-related", "Add another");
-        aAdd.innerHTML = '<img src="/static/admin/img/icon-addlink.svg" alt="">'
-        const aEdit = mkLink(buildAdminUrls(ctVal, objVal).edit, "change-related", "Change");
-        aEdit.innerHTML = '<img src="/static/admin/img/icon-changelink.svg" alt="">'
-        actionsSlot.appendChild(aEdit);
-        actionsSlot.appendChild(aAdd);
-        obj.parentNode.setAttribute('data-model-ref', meta.model);
+      if (!ctVal) {
+        // No CT: keep all links visible but disabled
+        setLink(addLink, false);
+        setLink(changeLink, false);
+        setLink(viewLink, false);
+        if (relatedWidgetWrapper) relatedWidgetWrapper.removeAttribute('data-model-ref');
+        return;
       }
+
+      const meta = CTMAP[ctVal] || { perms: { add: false, change: false, view: false }, model: '' };
+      const urlsWithObj = objVal ? buildAdminUrls(ctVal, objVal) : null;
+      const urlsNoObj = buildAdminUrls(ctVal, null);
+
+      // Add: enabled if user can add
+      setLink(addLink, !!(meta.perms && meta.perms.add), urlsNoObj && urlsNoObj.add, null);
+
+      // Change/View: keep links, disable when no object or no permission
+      const canChange = !!(meta.perms && meta.perms.change) && !!objVal;
+      const canView = !!(meta.perms && meta.perms.view) && !!objVal;
+      setLink(changeLink, canChange, urlsWithObj && urlsWithObj.edit, urlsNoObj && urlsNoObj.template);
+      setLink(viewLink, canView, urlsWithObj && urlsWithObj.view, urlsNoObj && urlsNoObj.template);
+
+      if (relatedWidgetWrapper) relatedWidgetWrapper.setAttribute('data-model-ref', meta.model || '');
     }
 
     // Defer init until layout is stable (prevents forced reflow issues)
@@ -151,11 +189,11 @@
       setTimeout(function () {
         const $ct = $(ct);
         const $obj = $(obj);
-        safeDestroy($ct);
-        safeDestroy($obj);
+        destroySelect2Everywhere(ct);
+        destroySelect2Everywhere(obj);
 
         // obj: remote Select2, always dependent on CT
-        $(obj).select2({
+        $obj.select2({
           ajax: {
             transport: function (params, success, failure) {
               fetchOptions(params.data && params.data.q, params.data && params.data.page)
@@ -172,7 +210,7 @@
         });
 
         // ct: simple Select2; when changing, clear the object
-        $(ct).select2({ width: "style" }).on("change", function () {
+        $ct.select2({ width: "style" }).on("change", function () {
           $(obj).val(null).trigger("change");
           updateActions();
         });
@@ -180,6 +218,17 @@
         // Update when the object changes (selected via Select2)
         $obj.on("change", function () {
           updateActions();
+        });
+
+        // Prevent navigation on disabled links while keeping layout stable
+        [addLink, changeLink, viewLink].forEach(function (lnk) {
+          if (!lnk) return;
+          lnk.addEventListener('click', function (e) {
+            if (lnk.classList.contains('autogfk-disabled-link')) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          });
         });
 
         // Initialize

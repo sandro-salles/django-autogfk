@@ -145,7 +145,13 @@ class AutoGenericForeignKeyAdminMixin:
 
 
             f = AutoGenericForeignKeyFormField(label=label, required=pair_required, limit_ct_qs=ct_qs)
-            f.widget = AutoGenericForeignKeyWidget(self, self.admin_site, limit_ct_qs=ct_qs, show_app_label=self.show_app_label_on_ct_field)
+            f.widget = AutoGenericForeignKeyWidget(
+                self,
+                self.admin_site,
+                request=request,
+                limit_ct_qs=ct_qs,
+                show_app_label=self.show_app_label_on_ct_field,
+            )
             if obj is not None:
                 ct_val = getattr(obj, ct_field + "_id", None)
                 oid_val = getattr(obj, oid_field, None)
@@ -323,8 +329,13 @@ class AutoGenericForeignKeyInlineAdminMixin:
                             or (not getattr(oid_model_field, "null", True) and not getattr(oid_model_field, "blank", True))
 
             f = AutoGenericForeignKeyFormField(label=label, required=pair_required, limit_ct_qs=ct_qs)
-            f.widget = AutoGenericForeignKeyWidget(self, self.admin_site, limit_ct_qs=ct_qs,
-                                         show_app_label=self.show_app_label_on_ct_field)
+            f.widget = AutoGenericForeignKeyWidget(
+                self,
+                self.admin_site,
+                request=request,
+                limit_ct_qs=ct_qs,
+                show_app_label=self.show_app_label_on_ct_field,
+            )
 
             # initial is resolved by form.instance in editing; here we only register the field
             UnifiedForm.base_fields[surrogate] = f
