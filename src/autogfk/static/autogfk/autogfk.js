@@ -36,7 +36,8 @@
         .catch(() => ({ results: [], more: false }));
     }
 
-    const $ = (window.django && window.django.jQuery) || window.jQuery || window.$;
+    // Always use ONLY django.jQuery
+    const $ = (window.django && window.django.jQuery) || null;
     if (!$ || !$.fn || !$.fn.select2) return;
 
     // Rehydrate CT if the inline template came without options
@@ -56,24 +57,16 @@
       }
     } catch (e) { /* silent */ }
 
-    // Retorna todas as instâncias de jQuery que podem existir no admin/app
-    function getJQList() {
-      var list = [];
-      if (window.django && window.django.jQuery) list.push(window.django.jQuery);
-      if (window.jQuery && list.indexOf(window.jQuery) === -1) list.push(window.jQuery);
-      return list;
-    }
-
     // Checa se o select tem Select2 acoplado (robusto p/ 4.0.x e 4.1+)
-    function hasSelect2Attached(el, $jq) {
+    function hasSelect2Attached(el) {
       if (!el) return false;
       // flags de Select2
       if (el.classList && el.classList.contains('select2-hidden-accessible')) return true;
       if (el.hasAttribute && el.hasAttribute('data-select2-id')) return true;
       // via jQuery data
-      if ($jq) {
+      if ($) {
         try {
-          var $el = $jq(el);
+          var $el = $(el);
           var d = $el.data('select2');
           if (typeof d !== 'undefined' && d !== null) return true;
         } catch (e) { }
@@ -81,18 +74,14 @@
       return false;
     }
 
-    // Destrói em TODAS as instâncias de jQuery que conhecemos, só se estiver anexado
-    function destroySelect2Everywhere(el) {
-      var jqs = getJQList();
-      for (var i = 0; i < jqs.length; i++) {
-        var $jq = jqs[i];
-        try {
-          var $el = $jq(el);
-          if (typeof $el.select2 === 'function' && hasSelect2Attached(el, $jq)) {
-            $el.select2('destroy'); // não deve logar warning
-          }
-        } catch (e) { /* silent */ }
-      }
+    // Destrói Select2 na instância oficial quando estiver anexado
+    function destroySelect2IfAttached(el) {
+      try {
+        var $el = $(el);
+        if (typeof $el.select2 === 'function' && hasSelect2Attached(el)) {
+          $el.select2('destroy'); // não deve logar warning
+        }
+      } catch (e) { /* silent */ }
     }
 
 
@@ -189,8 +178,8 @@
       setTimeout(function () {
         const $ct = $(ct);
         const $obj = $(obj);
-        destroySelect2Everywhere(ct);
-        destroySelect2Everywhere(obj);
+        destroySelect2IfAttached(ct);
+        destroySelect2IfAttached(obj);
 
         // obj: remote Select2, always dependent on CT
         $obj.select2({
