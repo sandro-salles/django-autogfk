@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-autogfk"
-version = "0.4.1"
+version = "0.4.2"
 description = "AutoGenericForeignKey: Admin-friendly GenericForeignKey with Select2 autocomplete for Django."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,6 +34,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 autogfk = [
   "static/autogfk/*",
+  "templates/autogfk/*",
 ]
 
 [tool.pytest.ini_options]
