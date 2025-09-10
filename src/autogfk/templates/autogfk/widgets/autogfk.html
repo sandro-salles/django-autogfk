@@ -1,0 +1,20 @@
+{% load i18n static %}
+{# Renders the ContentType select #}
+{% include "django/forms/widgets/select.html" with widget=widget.ct %}
+
+{# Encloses the object select with the standard admin related widget wrapper #}
+<div class="related-widget-wrapper" data-autogfk-wrapper>
+  {% include "django/forms/widgets/select.html" with widget=widget.obj %}
+
+    <div class="related-widget-wrapper related-widget-wrapper-links" data-autogfk-links>
+        <a class="related-widget-wrapper-link change-related" id="change_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %}>
+            <img src="{% static 'admin/img/icon-changelink.svg' %}" alt="">
+        </a>
+        <a class="related-widget-wrapper-link add-related" id="add_id_{{ widget.obj.name }}" data-popup="yes">
+            <img src="{% static 'admin/img/icon-addlink.svg' %}" alt="">
+        </a>
+        <a class="related-widget-wrapper-link view-related" id="view_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %}>
+            <img src="{% static 'admin/img/icon-viewlink.svg' %}" alt="">
+        </a>
+    </div>
+</div>
