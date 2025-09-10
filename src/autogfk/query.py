@@ -184,33 +184,6 @@ def _rewrite_q_obj(model: type[models.Model], expr: Q) -> Q:
     return q2
 
 
-class AutoGenericForeignKeyQuerySet(models.QuerySet):
-    """
-    QuerySet that understands filters on GenericForeignKey/AutoGenericForeignKey fields.
-    """
-    def _rewrite_args_kwargs(self, *args: Q, **kwargs: Any):
-        # 1) kwargs -> (Q_gfk, kwargs_rest)
-        q_gfk, rest = _rewrite_kwargs_to_q(self.model, kwargs)
-        # 2) rewritten args (Qs)
-        new_args = [ _rewrite_q_obj(self.model, a) for a in args ]
-        # aggregate Q from kwargs, if any
-        if q_gfk.children:
-            new_args.append(q_gfk)
-        return new_args, rest
-
-    # filter/exclude/get rewritten to understand GFKs
-    def filter(self, *args, **kwargs):
-        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
-        return super().filter(*new_args, **rest)
-
-    def exclude(self, *args, **kwargs):
-        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
-        return super().exclude(*new_args, **rest)
-
-    def get(self, *args, **kwargs):
-        new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
-        return super().get(*new_args, **rest)
-
 class AutoGenericForeignKeyRewriteMixin:
     """
     QuerySet mixin: rewrites filters on GenericForeignKey/AutoGenericForeignKey
@@ -235,6 +208,64 @@ class AutoGenericForeignKeyRewriteMixin:
         new_args, rest = self._rewrite_args_kwargs(*args, **kwargs)
         return super().get(*new_args, **rest)
 
+    # --- write helpers: create/update families ---
+    def _rewrite_payload_for_write(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Rewrites logical GFK assignments in a payload dict (for create/update/defaults)
+        into their physical ct/oid fields. Does NOT modify the original dict.
+
+        Accepts values as in filters: model instance, (ct|ct_id, oid), {content_type, object_id}, or None.
+        """
+        if not payload:
+            return payload or {}
+        mapping = _gfk_map_for_model(self.model)
+        new_payload = dict(payload)
+        for key in list(payload.keys()):
+            if key not in mapping:
+                continue
+            ct_field, oid_field = mapping[key]
+            norm = _normalize_obj(payload[key])
+            if norm is None:
+                new_payload[ct_field] = None
+                new_payload[oid_field] = None
+            else:
+                ct, oid = norm
+                new_payload[ct_field] = ct
+                new_payload[oid_field] = oid
+            # remove logical key
+            new_payload.pop(key, None)
+        return new_payload
+
+    def create(self, **kwargs):
+        kwargs2 = self._rewrite_payload_for_write(kwargs)
+        return super().create(**kwargs2)
+
+    def update(self, **kwargs):
+        kwargs2 = self._rewrite_payload_for_write(kwargs)
+        return super().update(**kwargs2)
+
+    def get_or_create(self, defaults=None, **kwargs):
+        # Rewrites both the lookup kwargs and the defaults payload
+        new_args, lookup_rest = self._rewrite_args_kwargs(**kwargs)
+        defaults2 = self._rewrite_payload_for_write(defaults or {})
+        if new_args:
+            # Narrow queryset first, then delegate to base implementation to avoid recursion
+            narrowed = super().filter(*new_args, **lookup_rest)
+            return models.QuerySet.get_or_create(narrowed, defaults=defaults2, **lookup_rest)
+        # No Q args to apply; call base directly on self
+        return super().get_or_create(defaults=defaults2, **lookup_rest)
+
+    def update_or_create(self, defaults=None, **kwargs):
+        new_args, lookup_rest = self._rewrite_args_kwargs(**kwargs)
+        defaults2 = self._rewrite_payload_for_write(defaults or {})
+        if new_args:
+            narrowed = super().filter(*new_args, **lookup_rest)
+            return models.QuerySet.update_or_create(narrowed, defaults=defaults2, **lookup_rest)
+        return super().update_or_create(defaults=defaults2, **lookup_rest)
+
+class AutoGenericForeignKeyQuerySet(AutoGenericForeignKeyRewriteMixin, models.QuerySet):
+    pass
+
 
 class AutoGenericForeignKeyPolymorphicQuerySet(AutoGenericForeignKeyRewriteMixin, PolymorphicQuerySet):
     """
@@ -242,4 +273,3 @@ class AutoGenericForeignKeyPolymorphicQuerySet(AutoGenericForeignKeyRewriteMixin
     MRO importa: nosso mixin vem primeiro para interceptar filter/exclude/get.
     """
     pass
-
