@@ -6,7 +6,7 @@
 <div class="related-widget-wrapper" data-autogfk-wrapper>
   {% include "django/forms/widgets/select.html" with widget=widget.obj %}
 
-    <div class="related-widget-wrapper related-widget-wrapper-links" data-autogfk-links>
+    <div class="related-widget-wrapper-links" data-autogfk-links>
         <a class="related-widget-wrapper-link change-related" id="change_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %}>
             <img src="{% static 'admin/img/icon-changelink.svg' %}" alt="">
         </a>
