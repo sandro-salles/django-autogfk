@@ -249,22 +249,20 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-      setTimeout(() => {
-          setjQuery();
-          if (!$) {
-              console.error("A valid jQuery instance was not found");
-              return;
-          }
-    
-          $(document).on("formset:added", function (event, $row /* , formsetName */) {
-              if ($row && $row.length) {
-                  initAllIn($row[0]);
-              }
-          });
-    
-          initAllIn(document);
-      }, 500);
+      setjQuery();
 
+      if (!$) {
+          console.error("A valid jQuery instance was not found");
+          return;
+      }
+
+      $(document).on("formset:added", function (event, $row /* , formsetName */) {
+          if ($row && $row.length) {
+              initAllIn($row[0]);
+          }
+      });
+
+      initAllIn(document);
   });
 
 })();

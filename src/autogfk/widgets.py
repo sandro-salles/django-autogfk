@@ -2,6 +2,7 @@
 from __future__ import annotations
 from django import forms
 from django.urls import reverse
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 import json
 class AutoGenericForeignKeyWidget(forms.MultiWidget):
@@ -177,9 +178,21 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
             ctx["widget"]["add_href"] = f'/admin/{obj._meta.app_label}/{obj._meta.model_name}/add/?_to_field=id&_popup=1'
         return ctx
 
-    class Media:
-        js = (
-            "admin/js/vendor/select2/select2.full.js",
-            "autogfk/autogfk.js",
+    @property
+    def media(self):
+        """
+        Include Select2 from Jazzmin if installed, else from Django admin,
+        and always include our widget assets.
+        """
+        jazzmin = 'jazzmin' in getattr(settings, 'INSTALLED_APPS', [])
+        if jazzmin:
+            sel2_js = ("vendor/select2/js/select2.min.js",)
+            sel2_css = ("vendor/select2/css/select2.min.css",)
+        else:
+            sel2_js = ("admin/js/vendor/select2/select2.full.min.js",)
+            sel2_css = ("admin/css/vendor/select2/select2.min.css",)
+
+        return forms.Media(
+            js=sel2_js + ("autogfk/autogfk.js",),
+            css={"all": sel2_css + ("autogfk/autogfk.css",)},
         )
-        css = {"all": ("admin/css/vendor/select2/select2.css", "autogfk/autogfk.css")}

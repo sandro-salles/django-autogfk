@@ -74,7 +74,7 @@ class ExampleChildInline(AutoGenericForeignKeyInlineAdminMixin, admin.StackedInl
 
 @admin.register(ExampleParent)
 class ExampleParentAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
-    # inlines = [ExampleChildInline]
+    inlines = [ExampleChildInline]
 
     fieldsets = [
         (None, {

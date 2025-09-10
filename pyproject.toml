@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-autogfk"
-version = "0.5.0"
+version = "0.5.1"
 description = "AutoGenericForeignKey: Admin-friendly GenericForeignKey with Select2 autocomplete for Django."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "Django>=4.2",
+    "Django>=4.2",    
 ]
 
 [project.urls]
@@ -36,6 +36,14 @@ dev = [
 
 polymorphic = [
     "django-polymorphic>=4.1.0",
+]
+
+select2 = [
+    "django-select2>=8.4.1",
+]
+
+jazzmin = [
+    "jazzmin>=1.14.0",
 ]
 
 [tool.setuptools.packages.find]
