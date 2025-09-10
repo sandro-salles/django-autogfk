@@ -7,13 +7,13 @@
   {% include "django/forms/widgets/select.html" with widget=widget.obj %}
 
     <div class="related-widget-wrapper-links" data-autogfk-links>
-        <a class="related-widget-wrapper-link change-related" id="change_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %} {% if widget.href %}href="{{ widget.href }}"{% endif %}>
+        <a class="related-widget-wrapper-link change-related" id="change_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %} {% if widget.change_href %}href="{{ widget.change_href }}"{% endif %}>
             <img src="{% static 'admin/img/icon-changelink.svg' %}" alt="">
         </a>
-        <a class="related-widget-wrapper-link add-related" id="add_id_{{ widget.obj.name }}" data-popup="yes">
+        <a class="related-widget-wrapper-link add-related" id="add_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.add_href %}href="{{ widget.add_href }}"{% endif %}>
             <img src="{% static 'admin/img/icon-addlink.svg' %}" alt="">
         </a>
-        <a class="related-widget-wrapper-link view-related" id="view_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %} {% if widget.href %}href="{{ widget.href }}"{% endif %}>
+        <a class="related-widget-wrapper-link view-related" id="view_id_{{ widget.obj.name }}" data-popup="yes" {% if widget.data_href_template %}data-href-template="{{ widget.data_href_template }}"{% endif %} {% if widget.view_href %}href="{{ widget.view_href }}"{% endif %}>
             <img src="{% static 'admin/img/icon-viewlink.svg' %}" alt="">
         </a>
     </div>
