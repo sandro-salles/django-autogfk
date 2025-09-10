@@ -32,7 +32,8 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
 
         # Choices e metadados do CT (id→label e id→(app, model)) vão em data-attrs do select de CT
         qs = limit_ct_qs if limit_ct_qs is not None else ContentType.objects.all()
-        ct_pairs = [(ct.pk, self._ct_label(ct)) for ct in qs]
+        # Ensure labels are plain strings (avoid lazy translation proxies)
+        ct_pairs = [(ct.pk, str(self._ct_label(ct))) for ct in qs]
         self.widgets[0].choices = [("", "---------")] + ct_pairs
         self.widgets[0].attrs["data-autogfk-choices"] = json.dumps(ct_pairs)
         # Include permission flags (add/change/view) for the current user per CT
@@ -93,7 +94,7 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
 
 
     def _ct_label(self, ct):
-        """Return label for ContentType respecting show_app_label flag."""
+        """Return label for ContentType respecting show_app_label flag, always as str."""
         try:
             model_cls = ct.model_class()
         except Exception:
@@ -101,7 +102,8 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
         if self.show_app_label:
             return str(ct)
         else:
-            return getattr(getattr(model_cls, "_meta", None), "verbose_name", None) or ct.model
+            label = getattr(getattr(model_cls, "_meta", None), "verbose_name", None) or ct.model
+            return str(label)
 
 
     def decompress(self, value):
