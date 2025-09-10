@@ -178,5 +178,8 @@ class AutoGenericForeignKeyWidget(forms.MultiWidget):
         return ctx
 
     class Media:
-        js = ("autogfk/autogfk.js",)
-        css = {"all": ("autogfk/autogfk.css",)}
+        js = (
+            "admin/js/vendor/select2/select2.full.js",
+            "autogfk/autogfk.js",
+        )
+        css = {"all": ("admin/css/vendor/select2/select2.css", "autogfk/autogfk.css")}

@@ -91,14 +91,24 @@ class AutoGenericForeignKeyAdminMixin:
         specs = self._specs()
         model = self.model
 
-        # 1) Base 'fields' = only real editable fields; remove ct/oid and logical
-        real_fields = [f.name for f in model._meta.get_fields()
+        # 1) Determine desired fields honoring admin 'fields' when provided.
+        user_declared_fields = bool(getattr(self, "fields", None))
+        if user_declared_fields:
+            desired = list(self.fields)
+        else:
+            desired = [f.name for f in model._meta.get_fields()
                        if getattr(f, "editable", False) and not f.auto_created]
+
+        # Remove logical and physical fields from the ModelForm construction
         for logical, meta in specs.items():
             for rm in (logical, meta["ct_field"], meta["oid_field"]):
-                if rm in real_fields:
-                    real_fields.remove(rm)
-        kwargs["fields"] = tuple(real_fields)
+                if rm in desired:
+                    desired.remove(rm)
+
+        kwargs["fields"] = tuple(desired)
+        # Expose form-field names and whether the admin declared 'fields'
+        self._autogfk_form_fields = set(desired)
+        self._autogfk_user_declared_fields = user_declared_fields
 
         base_form = super().get_form(request, obj, **kwargs)
 
@@ -180,33 +190,58 @@ class AutoGenericForeignKeyAdminMixin:
         if not fieldsets:
             fieldsets = [(None, {"fields": []})]
 
-        title, opts = fieldsets[0]
-        fields = list(opts.get("fields", []))
+        # Detect explicit intent: declared fieldsets or fields on the ModelAdmin
+        user_declared_fieldsets = bool(getattr(self, "fieldsets", None))
+        explicit_any = user_declared_fieldsets or bool(getattr(self, "_autogfk_user_declared_fields", False))
 
-        # Always hide physical fields
-        for meta in specs.values():
-            for f in (meta["ct_field"], meta["oid_field"]):
-                if f in fields:
-                    fields.remove(f)
+        new_fieldsets = []
+        allowed = set(getattr(self, "_autogfk_form_fields", set()))
+        for (title, opts) in fieldsets:
+            fields = list(opts.get("fields", []) or [])
 
-        if getattr(self, "_autogfk_rendering", False):
-            # Rendering: insert surrogates, remove logical
-            for logical in list(specs.keys()):
-                if logical in fields:
-                    fields.remove(logical)
-            for logical in specs.keys():
-                sur = self._surrogate(logical)
-                if sur not in fields:
-                    fields.insert(0, sur)
-        else:
-            # Form construction: remove logical and surrogates
-            for logical in specs.keys():
-                for rm in (logical, self._surrogate(logical)):
-                    if rm in fields:
-                        fields.remove(rm)
+            # Always hide physical fields
+            for meta in specs.values():
+                for f in (meta["ct_field"], meta["oid_field"]):
+                    if f in fields:
+                        fields.remove(f)
 
-        fieldsets[0] = (title, {**opts, "fields": tuple(fields)})
-        return fieldsets
+            if getattr(self, "_autogfk_rendering", False):
+                # Rendering: replace ONLY the logical fields declared by the user
+                if fields:
+                    replaced = []
+                    for f in fields:
+                        if f in specs:
+                            replaced.append(self._surrogate(f))
+                        elif f == self._surrogate(f):
+                            replaced.append(f)
+                        elif not allowed or f in allowed:
+                            replaced.append(f)
+                        # else: unknown to the form → drop
+                    fields = replaced
+                # If admin didn't explicitly declare fields/fieldsets, auto-add all surrogates
+                if not explicit_any:
+                    existing = set(fields)
+                    for logical in reversed(list(specs.keys())):
+                        sur = self._surrogate(logical)
+                        if sur not in existing:
+                            fields.insert(0, sur)
+                            existing.add(sur)
+            else:
+                # Form construction: remove logical and surrogates entirely
+                clean = []
+                for f in fields:
+                    if f in specs:
+                        continue
+                    if f == self._surrogate(f):
+                        continue
+                    if allowed and f not in allowed:
+                        continue
+                    clean.append(f)
+                fields = clean
+
+            new_fieldsets.append((title, {**opts, "fields": tuple(fields)}))
+
+        return new_fieldsets
 
 
 
@@ -401,7 +436,8 @@ class AutoGenericForeignKeyInlineAdminMixin:
 
     def get_fieldsets(self, request, obj=None):
         """
-        Remove physical fields and inject surrogates for rendering (similar to admin mixin).
+        Remove physical fields and inject surrogates for rendering (similar to admin mixin),
+        handling all fieldsets and not only the first one.
         """
         fieldsets = list(super().get_fieldsets(request, obj))
         specs = self._specs(self.model)
@@ -411,21 +447,54 @@ class AutoGenericForeignKeyInlineAdminMixin:
         if not fieldsets:
             fieldsets = [(None, {"fields": []})]
 
-        title, opts = fieldsets[0]
-        fields = list(opts.get("fields", []))
+        user_declared_fieldsets = bool(getattr(self, "fieldsets", None))
+        explicit_any = user_declared_fieldsets or bool(getattr(self, "_autogfk_user_declared_fields", False))
 
-        # remove physical and logical fields (the inline form will use surrogates)
-        for logical, meta in specs.items():
-            for rm in (logical, meta["ct_field"], meta["oid_field"]):
-                if rm in fields:
-                    fields.remove(rm)
+        new_fieldsets = []
+        allowed = set(getattr(self, "_autogfk_form_fields", set()))
+        for (title, opts) in fieldsets:
+            fields = list(opts.get("fields", []) or [])
 
-        # inject surrogates only if we are not building the FormSet
-        if not getattr(self, "_autogfk_inline_building", False):
-            for logical in specs.keys():
-                sur = self._surrogate(logical)
-                if sur not in fields:
-                    fields.insert(0, sur)
+            # remove physical fields
+            for logical, meta in specs.items():
+                for rm in (meta["ct_field"], meta["oid_field"]):
+                    if rm in fields:
+                        fields.remove(rm)
 
-        fieldsets[0] = (title, {**opts, "fields": tuple(fields)})
-        return fieldsets
+            # inject surrogates only if we are not building the FormSet
+            if not getattr(self, "_autogfk_inline_building", False):
+                if fields:
+                    replaced = []
+                    for f in fields:
+                        if f in specs:
+                            replaced.append(self._surrogate(f))
+                        elif f == self._surrogate(f):
+                            replaced.append(f)
+                        elif not allowed or f in allowed:
+                            replaced.append(f)
+                        # else: drop unknown
+                    fields = replaced
+                # Auto-add surrogates when admin didn't explicitly declare
+                if not explicit_any:
+                    existing = set(fields)
+                    for logical in reversed(list(specs.keys())):
+                        sur = self._surrogate(logical)
+                        if sur not in existing:
+                            fields.insert(0, sur)
+                            existing.add(sur)
+            else:
+                # Building formset: remove logical and surrogates
+                clean = []
+                for f in fields:
+                    if f in specs:
+                        continue
+                    if f == self._surrogate(f):
+                        continue
+                    if allowed and f not in allowed:
+                        continue
+                    clean.append(f)
+                fields = clean
+
+            new_fieldsets.append((title, {**opts, "fields": tuple(fields)}))
+
+        return new_fieldsets

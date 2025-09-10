@@ -23,7 +23,6 @@ class ExampleAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
     show_app_label_on_ct_field = False
     list_display = ("id", "field_a", "field_b", "field_c", "notes")
 
-
 @admin.register(ExamplePlainGFK)
 class ExamplePlainGFKAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
     list_display = ("id", "target")
@@ -59,6 +58,8 @@ class ExamplePolyAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
     # optional - controls if the CT select will show/hide the app_label
     show_app_label_on_ct_field = False
 
+
+
 @admin.register(ExamplePolyChild)
 class ExamplePolyChildAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
     list_display = ("id", "field_a", "extra")
@@ -73,6 +74,15 @@ class ExampleChildInline(AutoGenericForeignKeyInlineAdminMixin, admin.StackedInl
 
 @admin.register(ExampleParent)
 class ExampleParentAdmin(AutoGenericForeignKeyAdminMixin, admin.ModelAdmin):
-    inlines = [ExampleChildInline]
+    # inlines = [ExampleChildInline]
+
+    fieldsets = [
+        (None, {
+            "fields": ["name", "kind"],
+        }),
+        ("Field B", {
+            "fields": ["field_b"],
+        }),
+    ]
 
     
