@@ -1,0 +1,3 @@
+include README.md
+recursive-include src/autogfk/static *
+recursive-include src/autogfk/templates *
